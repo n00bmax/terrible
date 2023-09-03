@@ -1,78 +1,113 @@
+#Cluster config
 ---
 net_config:
   ip_base: "10.10.5.0"
   netmask: 12
   gateway: "10.0.0.1"
 
-#Proxmox VM config defaults
+#Proxmox VM config
 node_config:
   control_plane:
-    node_count: 1
+    onboot: true
+    node_count: 2
     ip_offset: 90
-    name_prefix: "kube-control-0"
-    target_node: "UditSuperServer"
+    name_prefix: "kube-control-"
+    target_node:
+      - "UditSuperServer"
     vmid_prefix: "80"
     agent: 1
-    cores: 8
-    sockets: 1
+    cores:
+      - 8
+    sockets:
+      - 1
     cpu: "host"
-    memory: 8192
+    memory:
+      - 8192
     scsihw: "virtio-scsi-single"
     bootdisk: "scsi0"
     disk:
-      slot: 0
-      size: "20G"
-      type: "scsi"
-      storage: "local-zfs-nvme-1"
-      iothread: 1
+      - slot: 0
+        size: "20G"
+        type: "scsi"
+        storage: "local-zfs-nvme-1"
+        iothread: 1
+      - slot: 0
+        size: "20G"
+        type: "scsi"
+        storage: "local-zfs-nvme-2"
+        iothread: 1
     network:
       model: "virtio"
       bridge: "vmbr0"
-
-    #Proxmox VM config defaults
+    machine: "q35"
+    hostpci:
+      - host: "0000:02:00.4"
+        rombar: 1
+        pcie: 1
+      - host: "0000:02:00.5"
+        rombar: 1
+        pcie: 1
   worker:
     node_count: 0
-    ip_offset: 90
-    name_prefix: "kube-worker-0"
-    target_node: "UditSuperServer"
+    onboot: true
+    ip_offset: 80
+    name_prefix: "kube-worker-"
+    target_node:
+      - "UditSuperServer"
     vmid_prefix: "50"
     agent: 1
-    cores: 4
-    sockets: 1
+    cores:
+      - 4
+    sockets:
+      - 1
     cpu: "host"
-    memory: 8192
+    memory:
+      - 8192
     scsihw: "virtio-scsi-single"
     bootdisk: "scsi0"
     disk:
-      slot: 0
-      size: "10G"
-      type: "scsi"
-      storage: "local-zfs"
-      iothread: 1
-    network:
-      model: "virtio"
-      bridge: "vmbr0"
-
-    #Proxmox VM config defaults
+      - slot: 0
+        size: "10G"
+        type: "scsi"
+        storage: "local-zfs"
+        iothread: 1
+    # network: 
+      # model: "virtio"
+      # bridge: "vmbr0"
+    machine: "q35"
+    hostpci:
+      - host: "0000:81:00.0"
+        rombar: 1
+        pcie: 1
   gpu:
+    onboot: true
     node_count: 0
     ip_offset: 90
-    name_prefix: "kube-gpu-node-0"
-    target_node: "UditSuperServer"
+    name_prefix: "kube-gpu-node-"
+    target_node:
+      - "UditSuperServer"
     vmid_prefix: "80"
     agent: 1
-    cores: 4
-    sockets: 1
+    cores:
+      - 4
+    sockets:
+      - 1
     cpu: "host"
-    memory: 8192
+    memory:
+      - 8192
     scsihw: "virtio-scsi-single"
     bootdisk: "scsi0"
     disk:
-      slot: 0
-      size: "10G"
-      type: "scsi"
-      storage: "local-zfs"
-      iothread: 1
+      - slot: 0
+        size: "10G"
+        type: "scsi"
+        storage: "local-zfs"
+        iothread: 1
     network:
       model: "virtio"
       bridge: "vmbr0"
+    machine: "q35"
+    hostpci:
+      - host: "0000:81:00.0"
+        rombar: 1
+        pcie: 1

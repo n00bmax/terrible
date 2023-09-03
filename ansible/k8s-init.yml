@@ -1,0 +1,6 @@
+- name: Install k8s base
+  hosts: all
+  become: true
+  remote_user: udit
+  roles:
+    - install_k8s

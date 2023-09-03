@@ -1,0 +1,6 @@
+# defaults file for install-k8s
+pod_cidr: "192.168.2.0/24"
+# this defines what the join command filename will be
+join_command_location: "join-command.out"
+# setting the home directory for retreiving, saving, and executing files
+home_dir: "/home/udit"
