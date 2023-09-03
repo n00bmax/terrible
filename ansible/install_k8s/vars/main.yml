@@ -1,0 +1,3 @@
+# vars file for install-k8s
+# setting the home directory for retreiving, saving, and executing files
+home_dir: "/home/udit"

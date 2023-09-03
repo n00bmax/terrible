@@ -1,0 +1,6 @@
+---
+- name: Install k8s base
+  hosts: localhost
+  remote_user: root
+  roles:
+    - install_k8s

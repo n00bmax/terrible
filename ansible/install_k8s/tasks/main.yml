@@ -1,0 +1,172 @@
+- name: Remove swapfile from /etc/fstab
+  ansible.posix.mount:
+    name: "{{ item }}"
+    fstype: swap
+    state: absent
+  with_items:
+    - swap
+    - none
+
+- name: Disable swap
+  ansible.builtin.command: swapoff -a
+  register: swap_disabled
+  when: ansible_swaptotal_mb > 0
+  changed_when: false
+
+# following required for containerd without docker shim
+- name: Add the net-filter module
+  community.general.modprobe:
+    name: br_netfilter
+    state: present
+    persistent: present
+
+- name: Set sysctl
+  ansible.posix.sysctl:
+    name: "net.ipv4.ip_forward"
+    value: 1
+    state: present
+    sysctl_set: true
+    reload: true
+
+- name: Reboot to apply swap disable
+  ansible.builtin.reboot:
+    reboot_timeout: 180
+  when: swap_disabled
+
+#############################################################
+- name: Wait for /var/lib/dpkg/lock-frontend to be released
+  ansible.builtin.shell: while lsof /var/lib/dpkg/lock-frontend ; do sleep 10; done;
+  changed_when: false
+
+- name: Install packages that allow apt to be used over HTTPS
+  ansible.builtin.apt:
+    name: "{{ packages }}"
+    state: present
+    update_cache: true
+  vars:
+    packages:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg-agent
+      - software-properties-common
+      - libnfs-utils
+      - nfs-common
+
+- name: Add an apt signing key for containerd (docker repo)
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Add apt repository for stable version of containerd
+  ansible.builtin.apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable
+    state: present
+
+- name: Install containerd.io
+  ansible.builtin.apt:
+    name: "{{ packages }}"
+    state: present
+    update_cache: true
+  vars:
+    packages:
+      - containerd.io
+
+- name: Ensure containerd is started and enabled at boot.
+  ansible.builtin.service:
+    name: containerd
+    state: started
+    enabled: true
+
+- name: Ensure containerd config directory exists.
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+    mode: "0755"
+  register: containerd_dir
+
+- name: Get defaults from containerd.
+  ansible.builtin.command: containerd config default
+  changed_when: false
+  register: containerd_config_default
+
+- name: Prepare containerd/config.toml from default config
+  ansible.builtin.copy:
+    dest: /tmp/containerd_config.toml
+    content: "{{ containerd_config_default.stdout }}"
+    mode: "0755"
+
+
+- name: Verify containerd is installed, enabled, and started
+  ansible.builtin.service:
+    name: containerd
+    state: started
+    enabled: true
+
+#############################################################
+
+- name: Set Cgroup driver to systemd
+  ansible.builtin.lineinfile:
+    search_string: "SystemdCgroup"
+    state: absent
+    path: /tmp/containerd_config.toml
+
+- name: Set Cgroup driver to systemd
+  ansible.builtin.lineinfile:
+    insertafter: '.*\[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options\]$'
+    line: "            SystemdCgroup = true"
+    state: present
+    path: /tmp/containerd_config.toml
+
+- name: Copy config.toml to /etc/containerd
+  ansible.builtin.copy:
+    remote_src: true
+    src: /tmp/containerd_config.toml
+    dest: /etc/containerd/config.toml
+    mode: "0755"
+
+
+- name: Cleanup temporary file
+  ansible.builtin.file:
+    path: /tmp/containerd_config.toml
+    state: absent
+  changed_when: false
+
+###########################################
+
+- name: Add an apt signing key for Kubernetes
+  ansible.builtin.apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+- name: Adding apt repository for Kubernetes
+  ansible.builtin.apt_repository:
+    repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+    filename: kubernetes.list
+
+- name: Install Kubernetes binaries
+  ansible.builtin.apt:
+    name: "{{ packages }}"
+    state: present
+    update_cache: true
+  vars:
+    packages:
+      - kubelet
+      - kubeadm
+      - kubectl
+
+- name: Hold kubernetes binary versions (prevent from being updated)
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl
+
+- name: Restart kubelet
+  ansible.builtin.service:
+    name: kubelet
+    daemon_reload: true
+    state: restarted
