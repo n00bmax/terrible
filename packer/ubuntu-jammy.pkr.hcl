@@ -108,7 +108,7 @@ build {
   sources = ["source.proxmox-iso.ubuntu-server-jammy"]
 
   provisioner "ansible" {
-    playbook_file = "../ansible/k8s-init.yml"
+    playbook_file = "${path.root}/../ansible/k8s-init.yml"
   }
   # Provisioning the VM Template for Cloud-Init Integration in Proxmox #1
   provisioner "shell" {
@@ -128,7 +128,7 @@ build {
 
   # Provisioning the VM Template for Cloud-Init Integration in Proxmox #2
   provisioner "file" {
-    source      = "files/${var.template_config.file_name}"
+    source      = "${path.root}/files/${var.template_config.file_name}"
     destination = "/tmp/${var.template_config.file_name}"
   }
 
